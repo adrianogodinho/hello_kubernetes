@@ -1,0 +1,28 @@
+#
+# ArgoCD API service configurations
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  ## Server properties
+  # Run server without TLS
+  server.insecure: "true"
+
+  # Server to be available to a non-root path TODO
+  server.rootpath: /argo-cd
+
+---
+
+#argo-cdapiVersion: getambassador.io/v2
+#kind: Mapping
+#metadata:
+#  name: argocd-server
+#spec:
+#  prefix: /argo-cd
+#  rewrite: /argo-cd
+#  service: argocd-server:443
