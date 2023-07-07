@@ -15,6 +15,9 @@ terraform {
   }
 }
 
+# Plugin used to issue Kubernetes commands to the Kubernetes cluster
+# note the config_path configuration, it instructs the plugin where it can find the host and credentials necessary to
+# access the cluster. For this project, this file is created by Kind.
 provider "kubectl" {
   config_path = "~/.kube/config"
 }

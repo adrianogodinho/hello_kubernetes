@@ -1,137 +1,119 @@
 # hello_kubernetes
-Experiences with cloud, Kubernetes, and IoC. 
+
+This is a Terraform project used to setup a fully functional Kubernetes clusters for educational purposes. 
+
+The following sections walk through the steps to create this clusters with the following characteristics: 
+* It is a simulated clusters on local machine created by Kind
+* This cluster is composed by 3 nodes: control-pane, worker, worker2 (check cluster-config-kind.yaml)
+* The Kubernetes-Dashboard, a graphical tool to manage kubernetes is installed to help to explore this tool concepts.
+* ArgoCD tool to enable GitOps 
+* Ingress controller to control external access to the clusters (WIP)
 
 
-The following steps were followed in order to create a Kubernetes cluster in the local machine using Kind.
+# Prerequisites
 
-Goals
-a. Install Kubernetes as container orchestrator
-b. Use Terraform as an Infrastructure as a Code solution
-c. Install and access Kubernetes Dashboard to have a visual glimpse of Kubernetes resources.
-d. Install ArgoCD to manage application deployments exploring the GitOps concept
+All the steps on this guide was executed on a Linux machine. To execute the steps guarantee that you have:
 
+1. Homebrew package manager - brew command ([Homebrew](https://docs.brew.sh/Homebrew-on-Linux))
+2. kubectl, to manage your Kubernetes cluster from command line ([https://kubernetes.io/docs/tasks/tools/](https://kubernetes.io/docs/tasks/tools/))
+3. Docker, the cluster will e simulated locally by using Docker containers running locally ([Ubuntu Docker Installation](https://docs.docker.com/engine/install/ubuntu/))
+4. Kind, to setup the local cluster ([Kind](https://kind.sigs.k8s.io/docs/user/quick-start/)) - or simply
+    > brew install kind
+5. Terraform, is an open-source infrastructure-as-code (IaC) tool that allows you to define, manage, and provision cloud infrastructure resources in a declarative way ([Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli))
+    > brew install terraform
+    
+# Setting up the local cluster using Kind
 
-1. Install kubectl
+Kind will simulate a kubernetes cluster using Docker containers. With a command is possible to run the bring-up the 
+Kubernetes cluster and configure your local machine to access it.
 
-    [https://kubernetes.io/docs/tasks/tools/](https://kubernetes.io/docs/tasks/tools/)
+There is also a script on this page to facilitate that if you want to abstract the details:
 
-2. Create a Kubernetes cluster
+    > ./create_kind_cluster.sh
 
-    For development/test purposes, create a cluster of docker containers by using kind.
+The command above will create the cluster as specified on the file cluster-config-kind.yaml. Play with this file to 
+change the number of notes you need. By default, it is set to run 3 nodes, being 2 workers and 1 panal-admin.
 
-    1. ~~Install dependencies: docker and go~~
+The kind command also create the file ~/.kube/config, with all the info necessary so that the command kubectl can run
+commands for the recent created cluster.
 
-        ~~> brew install docker~~
+Run the following command to get overall info about the cluster:
 
+    > kubectl cluster-info
 
-        ~~> brew install go   ~~
+You can check the nodes by running:
 
-    2. Install kind
+    > kubectl get nodes
 
-        ~~> go install sigs.k8s.io/kind@v0.20.0~~
+# Terraform and infrastructure as a code and Kubectl Provider
 
+All configurations and commands are defined as a Terraform code (\*.tf files).
 
-        > brew install kind \
+Terraform is based on Providers. A provider is a plugin that allows Terraform to interact with a specific 
+cloud or infrastructure platform. It serves as the bridge between Terraform and the target platform, enabling Terraform 
+to provision and manage resources within that platform. On this project, we interact with the Kubernetes cluster, so we 
+configure the Kubectl provider. 
 
+You can check details about the Providers configuration by opening the file main.tf. 
 
-    3. Install docker from the dmg file [https://docs.docker.com/desktop/install/mac-install/](https://docs.docker.com/desktop/install/mac-install/)
+Check for more info on the [Terraform Page](https://developer.hashicorp.com/terraform/tutorials).
+  
+# Kubernetes Dashboard - a visual tool to manage Kubernetes
 
-        (brew didn't started dockerd)eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
+To Deploy kubernetes dashboard, you can use the Kubernetes Manifest in k8s_dashboard/k8s_dash.yaml. Check how it is 
+deployed using Terraform by opening k8s_dashboard.tf.
 
-    4. Create cluster
+To do a deploy run:
 
-        > kind create cluster
+    > terraform init
+    > terraform apply
 
+If successfully executed, the previous command will deploy the Kubernetes-dashboard on your cluster. 
 
-        Creates a single note cluster
+All resources related to Kubernetes-dashboard are created under the kubernetes-dashboard namespace. Play with the 
+following command to review what was deployed:
 
-    5. Check cluster info
+    > kubectl get all -n kubernetes-dashboard
 
-        > kubectl cluster-info
+To access the graphical UI, you can start the Kubernetes Proxy to access the Kubernetes API by referencing localhost.
 
-3. Create the kubernets cluster using terraform to exercise Infrastructure as Code
-    6. Install Terraform
+    > kubectl proxy
 
-        > brew install terraform
+After running this command, open the following address in a browser.
 
-    7. Create Terraform project
+http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/login
 
- 	            Created a terraform folder
+It will ask for a credential, you can create a token by running:
 
-		Then a main.tf source importing a kubernetes and kubectl providers
+> kubectl -n kubernetes-dashboard create token admin
 
-		Providers are targeting the ~/.kube/config 
+Full info on how to create the credential [here](https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md](https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md).
 
-		Also created the argo.tf, with 2 terraform resource: 1 kubernetes namespace and a kubernetes yaml configuration (it installs all the argocd infra to the cluster).
+(Note that the account creation was already done by Terraform, check k8s_dash/k8s_dash_admin.yaml)
 
+# ArgoCD to manage the application deployments
 
+Why? GitOps concept - it monitors git and guarantees that the apps are in the same state; continuous delivery ---> 
+Use ArgoCD as a tool to improve the way you do your deployments, by relying on the state on git.
 
-4. Install kubernets dashboard to exercise the concepts of deployment
-    8. Create command on terraform to include the yaml to run the service on cluster
-        * It created a K8s namespace (a set of k8s resource)
+TBD.: port forward
 
-            kubectl describe pod --namespace=kubernetes-dashboard kubernetes-dashboard-6967859bff-sf2qk
+# Configuring Ingress
 
-    9. Create a proxy on the local machine to the K8s cluster, so that we can access the k8s server api by calling the loopback address]
+WIP
 
-        	kubectl proxy
-
-    10. Use the instruction to create an RBAC account and credentials to access the kubernetes-dashboard
-
-        [https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md](https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md)
-
-    11. Access the kubernets-dashboard to check all the k8s resources
-
-        [http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/workloads?namespace=default](http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/workloads?namespace=default)
-
-5. Install Ambassador, Ingress controller
-
-emissary-apiext-6594d7c648-7dq9b    0/1     CrashLoopBackOff 
-
-
-        wget [https://app.getambassador.io/yaml/edge-stack/latest/aes.yaml](https://app.getambassador.io/yaml/edge-stack/latest/aes.yaml)
-
-
-        wget https://app.getambassador.io/yaml/edge-stack/latest/aes.yaml    
-
-
-
-6. ArgoCD to manage the application deployments
-
-    Why? GitOps concept - it monitors git and guarantees that the apps are in the same state; continuous delivery ---> Use ArgoCD as a tool to improve the way you do your deployments, by relying on the state on git.
-
-    12. Access the Argo CD API service by configuring Ingress
-7. T
-
-TROUBLESHOOTING
+# Troubleshooting
 
 1. The terraform kubectl_manifest provider applies only the first document on the yaml.
+    It is not enough to point to Kubernetes File, it may be a Yaml composed by more than a document, if you just point
+    to the file, it will apply only the first document in the file. So it is necessary to instruct Terraform to read
+    all documents. [Handling yaml Files on Terraform kubectl provider](https://registry.terraform.io/providers/gavinbunney/kubectl/latest/docs/data-sources/kubectl_file_documents)
 
-        [https://registry.terraform.io/providers/gavinbunney/kubectl/latest/docs/data-sources/kubectl_file_documents](https://registry.terraform.io/providers/gavinbunney/kubectl/latest/docs/data-sources/kubectl_file_documents)
-
-2. Error when installing ambassador-crd
-
-    >kubectl get pod -n ambassador
-
-
-    emissary-apiext-6594d7c648-7dq9b    0/1     CrashLoopBackOff 
-
-
-    When a Pod is in the "CrashLoopBackOff" state, it means that the container within the Pod has crashed and is being restarted repeatedly.
-
-
-    >kubectl describe pod &lt;pod-name>
-
-
-    It was an error on namespace, terraform was forcing everything on ambassador namespace, which is not correct by this installation.
-
-
-GLOSSARY
-
-
+# Glossary
 
 1. CRD - CRD stands for Custom Resource Definition. Custom Resource Definitions are a feature of Kubernetes that allow users to define their own custom resources and extend the Kubernetes API with new object types.
 2. Helm - Helm is a package manager for Kubernetes that allows you to deploy and manage applications on your cluster
 3. IaC - Infrastructure as a Service - ex: Terraform
-4. ~/.kube/config  --- this is the configuration file used by the _kubectl_ command, it contains informations about how to access the Kubernetes cluster 
-5. Ingress - In Kubernetes, an Ingress is an API object that provides external access to services within a cluster.
+4. Kubernetes Manifest - a declarative configuration file written in YAML or JSON format that describes the desired state of Kubernetes resources. It defines the specifications for creating and managing Kubernetes objects, such as pods, deployments, services, and ingress rules.
+5. ~/.kube/config  --- this is the configuration file used by the _kubectl_ command, it contains informations about how to access the Kubernetes cluster 
+6. Ingress - In Kubernetes, an Ingress is an API object that provides external access to services within a cluster.
